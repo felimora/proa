@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Escuadrón PROA HLH</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            user-select: none; 
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            background-color: #f0f9ff;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .bacteria {
+            position: absolute;
+            font-size: 2.5rem;
+            cursor: pointer;
+            animation: float 3s ease-in-out infinite alternate, spin 6s linear infinite;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+            touch-action: manipulation;
+        }
+
+        .bacteria.pop {
+            animation: pop 0.2s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px) translateX(0px); }
+            100% { transform: translateY(-20px) translateX(10px); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.8; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        #game-container {
+            max-width: 480px;
+            margin: 0 auto;
+            height: 100dvh;
+            position: relative;
+            background-color: #ffffff;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .play-area {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(circle, #e0f2fe 0%, #bae6fd 100%);
+            border-radius: 1rem;
+            margin: 1rem;
+            border: 2px dashed #38bdf8;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div id="game-container">
+        
+        <!-- PANTALLA DE INICIO -->
+        <div id="start-screen" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-50 bg-white">
+            <div class="text-6xl mb-4">🏥</div>
+            <h1 class="text-3xl font-bold text-teal-700 mb-2">Escuadrón PROA</h1>
+            <h2 class="text-xl text-teal-600 mb-6 font-semibold">HLH</h2>
+            
+            <div class="bg-teal-50 p-4 rounded-xl mb-8 border border-teal-100 text-left">
+                <p class="mb-3 text-sm text-slate-700"><strong>Fase 1:</strong> Tienes 15 segundos para desinfectar el área. ¡Toca las bacterias (🦠, 🧫, 🐛) lo más rápido que puedas!</p>
+                <p class="text-sm text-slate-700"><strong>Fase 2:</strong> Responde 2 preguntas clínicas al azar. ¡Cada respuesta correcta suma 500 pts extra!</p>
+            </div>
+            
+            <input type="text" id="player-name" placeholder="Tu Nombre o Iniciales" class="mb-4 w-full max-w-xs p-3 border-2 border-teal-300 rounded-xl text-center font-bold text-slate-700 focus:outline-none focus:border-teal-500 shadow-inner" maxlength="15">
+
+            <button onclick="startGame()" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 px-10 rounded-full shadow-lg shadow-teal-500/30 transform transition active:scale-95 text-lg w-full max-w-xs">
+                Comenzar
+            </button>
+        </div>
+
+        <!-- PANTALLA DE JUEGO (ARCADE) -->
+        <div id="game-screen" class="hidden flex-col h-full w-full absolute inset-0 z-10 bg-white">
+            <div class="flex justify-between items-center p-4 bg-teal-600 text-white shadow-md">
+                <div class="flex flex-col">
+                    <span class="text-xs font-bold uppercase tracking-wider text-teal-100">Tiempo</span>
+                    <span id="timer" class="text-2xl font-black">15s</span>
+                </div>
+                <div class="text-center font-bold text-lg tracking-widest uppercase opacity-80">PROA</div>
+                <div class="flex flex-col text-right">
+                    <span class="text-xs font-bold uppercase tracking-wider text-teal-100">Puntos</span>
+                    <span id="score" class="text-2xl font-black">0</span>
+                </div>
+            </div>
+
+            <div id="play-area" class="play-area shadow-inner">
+                <!-- Bacterias inyectadas aquí -->
+            </div>
+        </div>
+
+        <!-- MODAL DE TRIVIA -->
+        <div id="trivia-modal" class="hidden absolute inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all">
+                <div class="bg-teal-500 p-4 text-center text-white">
+                    <div class="text-3xl mb-1">🧠</div>
+                    <h2 class="text-xl font-bold">Desafío Clínico</h2>
+                    <p id="trivia-progress" class="text-sm text-teal-100">Pregunta 1 de 2</p>
+                </div>
+                <div class="p-6 flex flex-col h-full max-h-[70vh]">
+                    <p id="trivia-question-text" class="text-md font-semibold text-slate-800 mb-6 text-center leading-snug">
+                        Cargando pregunta...
+                    </p>
+                    <div id="trivia-options-container" class="space-y-3 overflow-y-auto pr-1 pb-2">
+                        <!-- Botones inyectados por JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DE RESULTADOS & RANKING -->
+        <div id="result-modal" class="hidden absolute inset-0 z-[60] bg-slate-900/90 flex flex-col items-center justify-center p-4 text-center">
+            <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl relative max-h-[95dvh] flex flex-col">
+                
+                <div class="flex-shrink-0 mt-2">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-1">¡Misión Completada!</h2>
+                    <p id="result-feedback" class="text-sm text-slate-600 mb-3 px-2">
+                        <!-- Feedback inyectado por JS -->
+                    </p>
+
+                    <div class="bg-slate-50 rounded-xl p-3 mb-4 border border-slate-100 shadow-inner">
+                        <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Puntaje Final</p>
+                        <p id="final-score" class="text-4xl font-black text-teal-600">0</p>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN DE RANKING (LEADERBOARD) -->
+                <div class="flex-grow overflow-y-auto bg-slate-100 rounded-xl p-3 mb-4 shadow-inner text-left min-h-[160px]">
+                    <h3 class="font-bold text-slate-700 mb-2 text-center border-b border-slate-200 pb-2">🏆 Ranking Top 10 UPC</h3>
+                    <ul id="leaderboard-list" class="space-y-2 text-sm">
+                        <li class="text-center text-slate-500 italic py-4">Cargando ranking...</li>
+                    </ul>
+                </div>
+
+                <div class="flex-shrink-0">
+                    <button onclick="resetGame()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg transform transition active:scale-95">
+                        Volver a Jugar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- LÓGICA DEL JUEGO -->
+    <script>
+        // Banco de preguntas de la UPC
+        const ALL_QUESTIONS = [
+            {
+                q: "¿Cuál de los siguientes microorganismos son los más prevalentes en las infecciones de nuestra UPC?",
+                options: [
+                    { text: "S. aureus y Rhapsodia bohemium", correct: false },
+                    { text: "Klebsiella pneumoniae y Legionella", correct: false },
+                    { text: "S. aureus y Klebsiella pneumoniae", correct: true },
+                    { text: "E. coli y spectrum patronus", correct: false }
+                ]
+            },
+            {
+                q: "¿Cuáles son los antibióticos más utilizados en la UPC?",
+                options: [
+                    { text: "Vancomicina y amoxi/clavulánico", correct: false },
+                    { text: "Meropenem y Fosfomicina", correct: false },
+                    { text: "Nitrofurantoína y Cefazolina", correct: false },
+                    { text: "Meropenem y Vancomicina", correct: true }
+                ]
+            },
+            {
+                q: "¿Cuál es la principal infección asociada a la atención en salud de la UPC?",
+                options: [
+                    { text: "ITU CUP", correct: false },
+                    { text: "NAVM", correct: true },
+                    { text: "ITS CVC", correct: false }
+                ]
+            },
+            {
+                q: "¿Cuál de los siguientes microorganismos requiere aislamiento de contacto?",
+                options: [
+                    { text: "S. aureus meticilino susceptible", correct: false },
+                    { text: "K. pneumoniae productora de carbapenemasa tipo NDM", correct: true },
+                    { text: "Neumococo", correct: false },
+                    { text: "E. coli BLEE+", correct: false }
+                ]
+            }
+        ];
+
+        // Variables de estado del juego
+        let score = 0;
+        let timeLeft = 15;
+        let gameInterval;
+        let spawnInterval;
+        const EMOJIS = ['🦠', '🧫', '🐛'];
+        let playerName = "";
+        
+        // Variables de Trivia
+        let selectedQuestions = [];
+        let currentQuestionIndex = 0;
+        let correctAnswersCount = 0;
+        
+        const screens = {
+            start: document.getElementById('start-screen'),
+            game: document.getElementById('game-screen'),
+            trivia: document.getElementById('trivia-modal'),
+            result: document.getElementById('result-modal')
+        };
+        const playArea = document.getElementById('play-area');
+        const scoreEl = document.getElementById('score');
+        const timerEl = document.getElementById('timer');
+        const nameInput = document.getElementById('player-name');
+
+        function showCustomAlert(msg) {
+            const oldAlert = document.getElementById('custom-alert');
+            if(oldAlert) oldAlert.remove();
+            const alertDiv = document.createElement('div');
+            alertDiv.id = 'custom-alert';
+            alertDiv.className = 'absolute top-10 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-full font-bold shadow-xl z-[100] transition-opacity duration-300';
+            alertDiv.innerText = msg;
+            document.body.appendChild(alertDiv);
+            setTimeout(() => { 
+                alertDiv.style.opacity = '0'; 
+                setTimeout(() => alertDiv.remove(), 300); 
+            }, 2500);
+        }
+
+        window.startGame = function() {
+            playerName = nameInput.value.trim();
+            if(!playerName) {
+                showCustomAlert("¡Ingresa tu nombre o iniciales para el ranking!");
+                nameInput.focus();
+                return;
+            }
+
+            // Resetear stats
+            score = 0;
+            timeLeft = 15;
+            correctAnswersCount = 0;
+            updateHUD();
+            playArea.innerHTML = '';
+
+            screens.start.classList.add('hidden');
+            screens.game.classList.remove('hidden');
+            screens.game.classList.add('flex');
+
+            gameInterval = setInterval(() => {
+                timeLeft--;
+                updateHUD();
+                
+                if (timeLeft <= 0) {
+                    endPhase1();
+                }
+            }, 1000);
+
+            spawnBacteriaLoop();
+        };
+
+        function spawnBacteriaLoop() {
+            if (timeLeft > 0) {
+                spawnBacterium();
+                const nextSpawnTime = Math.random() * 400 + 300;
+                spawnInterval = setTimeout(spawnBacteriaLoop, nextSpawnTime);
+            }
+        }
+
+        function spawnBacterium() {
+            const bac = document.createElement('div');
+            bac.classList.add('bacteria');
+            bac.innerText = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+            
+            const maxX = playArea.clientWidth - 50;
+            const maxY = playArea.clientHeight - 50;
+            const randomX = Math.max(0, Math.floor(Math.random() * maxX));
+            const randomY = Math.max(0, Math.floor(Math.random() * maxY));
+            
+            bac.style.left = `${randomX}px`;
+            bac.style.top = `${randomY}px`;
+            bac.style.transform = `rotate(${Math.random() * 360}deg)`;
+
+            bac.onpointerdown = (e) => {
+                e.preventDefault();
+                if(bac.classList.contains('pop')) return;
+                
+                bac.classList.add('pop');
+                score += 10;
+                updateHUD();
+                
+                setTimeout(() => { if (bac.parentNode) bac.parentNode.removeChild(bac); }, 200);
+            };
+
+            playArea.appendChild(bac);
+
+            setTimeout(() => {
+                if (bac.parentNode && !bac.classList.contains('pop')) {
+                    bac.style.opacity = '0';
+                    bac.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => { if (bac.parentNode) bac.parentNode.removeChild(bac); }, 300);
+                }
+            }, 2500); 
+        }
+
+        function updateHUD() {
+            scoreEl.innerText = score;
+            timerEl.innerText = timeLeft + 's';
+            if (timeLeft <= 5) timerEl.classList.add('text-red-300');
+            else timerEl.classList.remove('text-red-300');
+        }
+
+        function endPhase1() {
+            clearInterval(gameInterval);
+            clearTimeout(spawnInterval);
+            
+            let shuffled = [...ALL_QUESTIONS].sort(() => 0.5 - Math.random());
+            selectedQuestions = shuffled.slice(0, 2);
+            currentQuestionIndex = 0;
+
+            showTriviaQuestion();
+            screens.trivia.classList.remove('hidden');
+        }
+
+        function showTriviaQuestion() {
+            const qData = selectedQuestions[currentQuestionIndex];
+            document.getElementById('trivia-progress').innerText = `Pregunta ${currentQuestionIndex + 1} de 2`;
+            document.getElementById('trivia-question-text').innerText = qData.q;
+            
+            const container = document.getElementById('trivia-options-container');
+            container.innerHTML = '';
+
+            qData.options.forEach((opt) => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left text-[0.9rem] p-3 rounded-lg border-2 border-slate-200 hover:border-teal-400 hover:bg-teal-50 transition-colors font-medium text-slate-700 active:bg-teal-100 active:scale-[0.98] transform duration-100';
+                btn.innerText = opt.text;
+                btn.onclick = () => handleTriviaAnswer(opt.correct);
+                container.appendChild(btn);
+            });
+        }
+
+        window.handleTriviaAnswer = function(isCorrect) {
+            if (isCorrect) {
+                score += 500;
+                correctAnswersCount++;
+            }
+            
+            currentQuestionIndex++;
+            if (currentQuestionIndex < 2) {
+                showTriviaQuestion();
+            } else {
+                finishGame();
+            }
+        };
+
+        // Nueva función unificada que envía los datos a FastAPI en Python
+        async function finishGame() {
+            screens.trivia.classList.add('hidden');
+            screens.result.classList.remove('hidden');
+
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('result-feedback').innerHTML = 
+                `Atrapaste <strong>${(score - (correctAnswersCount * 500)) / 10}</strong> patógenos y respondiste bien <strong>${correctAnswersCount} de 2</strong> preguntas clínicas.`;
+
+            const listEl = document.getElementById('leaderboard-list');
+            listEl.innerHTML = '<li class="text-center text-slate-500 italic py-4 flex flex-col items-center"><span class="animate-spin text-2xl mb-2">🔄</span> Sincronizando ranking...</li>';
+
+            try {
+                // Llamada POST al servidor Python (main.py)
+                const response = await fetch('/api/score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre: playerName, puntaje: score })
+                });
+                
+                if (!response.ok) throw new Error("Error en la respuesta del servidor");
+                const data = await response.json();
+                
+                listEl.innerHTML = '';
+                
+                data.top10.forEach((entry, index) => {
+                    const li = document.createElement('li');
+                    const isMe = (entry.nombre === playerName && entry.puntaje === score);
+                    li.className = `flex justify-between items-center p-2 rounded-lg border-b border-slate-100 ${isMe ? 'bg-teal-100 font-bold text-teal-800 border-teal-300' : 'text-slate-600'}`;
+                    
+                    let icon = '';
+                    if(index === 0) icon = '🥇 ';
+                    else if(index === 1) icon = '🥈 ';
+                    else if(index === 2) icon = '🥉 ';
+                    else icon = `<span class="inline-block w-[24px] text-center text-slate-400 font-mono text-xs">${index+1}.</span> `;
+
+                    li.innerHTML = `
+                        <span class="truncate pr-2">${icon} ${entry.nombre}</span>
+                        <span class="font-mono bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-xs">${entry.puntaje} pts</span>
+                    `;
+                    listEl.appendChild(li);
+                });
+
+            } catch (err) {
+                console.error("Error cargando Leaderboard: ", err);
+                listEl.innerHTML = '<li class="text-center text-red-500 text-xs py-3 font-semibold">Hubo un problema de conexión al cargar el ranking.</li>';
+            }
+        }
+
+        window.resetGame = function() {
+            screens.result.classList.add('hidden');
+            screens.game.classList.remove('flex');
+            screens.game.classList.add('hidden');
+            screens.start.classList.remove('hidden');
+        };
+    </script>
+</body>
+</html>
