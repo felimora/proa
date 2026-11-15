@@ -7,59 +7,47 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            user-select: none;
+            user-select: none; 
             -webkit-user-select: none;
             -webkit-tap-highlight-color: transparent;
             background-color: #f0f9ff;
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             overflow: hidden;
         }
- 
-        /* Contenedor: posición + flotación. Hijo: giro.
-           Antes ambas animaciones usaban "transform" en el mismo elemento y la segunda anulaba a la primera. */
+
         .bacteria {
             position: absolute;
             font-size: 2.5rem;
-            line-height: 1;
-            padding: 6px;               /* área táctil más amplia */
             cursor: pointer;
-            animation: float 3s ease-in-out infinite alternate;
+            animation: float 3s ease-in-out infinite alternate, spin 6s linear infinite;
             filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
             touch-action: manipulation;
-            transition: opacity 0.3s ease;
         }
- 
-        .bacteria > span {
-            display: inline-block;
-            animation: spin 6s linear infinite;
-            pointer-events: none;
-        }
- 
+
         .bacteria.pop {
             animation: pop 0.2s ease-out forwards;
             pointer-events: none;
         }
- 
+
         @keyframes float {
-            0%   { transform: translate(0, 0); }
-            100% { transform: translate(10px, -20px); }
+            0% { transform: translateY(0px) translateX(0px); }
+            100% { transform: translateY(-20px) translateX(10px); }
         }
- 
+
         @keyframes spin {
-            0%   { transform: rotate(0deg); }
+            0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
- 
+
         @keyframes pop {
-            0%   { transform: scale(1);   opacity: 1; }
-            50%  { transform: scale(1.5); opacity: 0.8; }
-            100% { transform: scale(0);   opacity: 0; }
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.8; }
+            100% { transform: scale(0); opacity: 0; }
         }
- 
+
         #game-container {
             max-width: 480px;
             margin: 0 auto;
-            height: 100vh;      /* respaldo para navegadores sin dvh */
             height: 100dvh;
             position: relative;
             background-color: #ffffff;
@@ -67,7 +55,7 @@
             display: flex;
             flex-direction: column;
         }
- 
+
         .play-area {
             flex-grow: 1;
             position: relative;
@@ -76,31 +64,39 @@
             border-radius: 1rem;
             margin: 1rem;
             border: 2px dashed #38bdf8;
+            transition: background-color 0.15s ease;
+        }
+        
+        /* Clase para el parpadeo rojo cuando tocan un EPP */
+        .flash-error {
+            background: radial-gradient(circle, #fee2e2 0%, #fca5a5 100%) !important;
+            border-color: #ef4444 !important;
         }
     </style>
 </head>
 <body class="text-slate-800">
- 
+
     <div id="game-container">
- 
+        
         <!-- PANTALLA DE INICIO -->
-        <div id="start-screen" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-50 bg-white">
+        <div id="start-screen" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-50 bg-white overflow-y-auto">
             <div class="text-6xl mb-4">🏥</div>
-            <h1 class="text-3xl font-bold text-teal-700 mb-2">Escuadrón PROA</h1>
-            <h2 class="text-xl text-teal-600 mb-6 font-semibold">HLH</h2>
- 
-            <div class="bg-teal-50 p-4 rounded-xl mb-8 border border-teal-100 text-left">
-                <p class="mb-3 text-sm text-slate-700"><strong>Fase 1:</strong> Tienes 15 segundos para desinfectar el área. ¡Toca las bacterias (🦠, 🧫, 🐛) lo más rápido que puedas!</p>
-                <p class="text-sm text-slate-700"><strong>Fase 2:</strong> Responde 2 preguntas clínicas al azar. ¡Cada respuesta correcta suma 500 pts extra!</p>
+            <h1 class="text-3xl font-bold text-teal-700 mb-1">Escuadrón PROA</h1>
+            <h2 class="text-xl text-teal-600 mb-4 font-semibold">HLH</h2>
+            
+            <div class="bg-teal-50 p-4 rounded-xl mb-6 border border-teal-100 text-left">
+                <p class="mb-3 text-sm text-slate-700"><strong>Fase 1:</strong> Tienes 15 segundos para desinfectar. ¡Toca las bacterias (🦠, 🧫, 🐛) lo más rápido que puedas!</p>
+                <p class="mb-3 text-sm text-red-600 font-bold bg-red-50 p-2 rounded-lg border border-red-100">⚠️ ¡NO contamines los EPP! Si tocas guantes (🧤) o mascarillas (😷) pierdes 20 puntos.</p>
+                <p class="text-sm text-slate-700"><strong>Fase 2:</strong> Responde 2 preguntas clínicas. ¡Cada acierto suma 500 pts extra!</p>
             </div>
- 
-            <input type="text" id="player-name" placeholder="Tu Nombre o Iniciales" autocomplete="off" class="mb-4 w-full max-w-xs p-3 border-2 border-teal-300 rounded-xl text-center font-bold text-slate-700 focus:outline-none focus:border-teal-500 shadow-inner" maxlength="15">
- 
-            <button id="start-btn" type="button" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 px-10 rounded-full shadow-lg shadow-teal-500/30 transform transition active:scale-95 text-lg w-full max-w-xs">
+            
+            <input type="text" id="player-name" placeholder="Tu Nombre o Iniciales" class="mb-4 w-full max-w-xs p-3 border-2 border-teal-300 rounded-xl text-center font-bold text-slate-700 focus:outline-none focus:border-teal-500 shadow-inner" maxlength="15">
+
+            <button onclick="startGame()" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 px-10 rounded-full shadow-lg shadow-teal-500/30 transform transition active:scale-95 text-lg w-full max-w-xs">
                 Comenzar
             </button>
         </div>
- 
+
         <!-- PANTALLA DE JUEGO (ARCADE) -->
         <div id="game-screen" class="hidden flex-col h-full w-full absolute inset-0 z-10 bg-white">
             <div class="flex justify-between items-center p-4 bg-teal-600 text-white shadow-md">
@@ -114,12 +110,12 @@
                     <span id="score" class="text-2xl font-black">0</span>
                 </div>
             </div>
- 
+
             <div id="play-area" class="play-area shadow-inner">
-                <!-- Bacterias inyectadas aquí -->
+                <!-- Elementos inyectados aquí -->
             </div>
         </div>
- 
+
         <!-- MODAL DE TRIVIA -->
         <div id="trivia-modal" class="hidden absolute inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all">
@@ -128,7 +124,7 @@
                     <h2 class="text-xl font-bold">Desafío Clínico</h2>
                     <p id="trivia-progress" class="text-sm text-teal-100">Pregunta 1 de 2</p>
                 </div>
-                <div class="p-6 flex flex-col max-h-[70vh]">
+                <div class="p-6 flex flex-col h-full max-h-[70vh]">
                     <p id="trivia-question-text" class="text-md font-semibold text-slate-800 mb-6 text-center leading-snug">
                         Cargando pregunta...
                     </p>
@@ -138,21 +134,23 @@
                 </div>
             </div>
         </div>
- 
+
         <!-- MODAL DE RESULTADOS & RANKING -->
         <div id="result-modal" class="hidden absolute inset-0 z-[60] bg-slate-900/90 flex flex-col items-center justify-center p-4 text-center">
             <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl relative max-h-[95dvh] flex flex-col">
- 
+                
                 <div class="flex-shrink-0 mt-2">
                     <h2 class="text-2xl font-bold text-slate-800 mb-1">¡Misión Completada!</h2>
-                    <p id="result-feedback" class="text-sm text-slate-600 mb-3 px-2"></p>
- 
+                    <p id="result-feedback" class="text-sm text-slate-600 mb-3 px-2">
+                        <!-- Feedback inyectado por JS -->
+                    </p>
+
                     <div class="bg-slate-50 rounded-xl p-3 mb-4 border border-slate-100 shadow-inner">
                         <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Puntaje Final</p>
                         <p id="final-score" class="text-4xl font-black text-teal-600">0</p>
                     </div>
                 </div>
- 
+
                 <!-- SECCIÓN DE RANKING (LEADERBOARD) -->
                 <div class="flex-grow overflow-y-auto bg-slate-100 rounded-xl p-3 mb-4 shadow-inner text-left min-h-[160px]">
                     <h3 class="font-bold text-slate-700 mb-2 text-center border-b border-slate-200 pb-2">🏆 Ranking Top 10 UPC</h3>
@@ -160,34 +158,20 @@
                         <li class="text-center text-slate-500 italic py-4">Cargando ranking...</li>
                     </ul>
                 </div>
- 
+
                 <div class="flex-shrink-0">
-                    <button id="reset-btn" type="button" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg transform transition active:scale-95">
+                    <button onclick="resetGame()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg transform transition active:scale-95">
                         Volver a Jugar
                     </button>
                 </div>
             </div>
         </div>
- 
+
     </div>
- 
+
     <!-- LÓGICA DEL JUEGO -->
     <script>
-    (function () {
-        'use strict';
- 
-        // ===== CONFIGURACIÓN =====
-        // Vacío = mismo dominio (FastAPI sirve este HTML en Render).
-        // Si el HTML está en GitHub Pages y la API en Render, poner la URL completa:
-        // const API_BASE = 'https://tu-app.onrender.com';
-        const API_BASE = '';
-        const GAME_SECONDS = 15;
-        const QUESTIONS_PER_GAME = 2;
-        const POINTS_PER_BACTERIUM = 10;
-        const POINTS_PER_ANSWER = 500;
-        const FETCH_TIMEOUT_MS = 60000; // Render free "despierta" lento (~30-50 s)
- 
-        // Banco de preguntas de la UPC
+        // Banco de preguntas de la UPC (9 preguntas)
         const ALL_QUESTIONS = [
             {
                 q: "¿Cuál de los siguientes microorganismos son los más prevalentes en las infecciones de nuestra UPC?",
@@ -223,7 +207,7 @@
                     { text: "Neumococo", correct: false },
                     { text: "E. coli BLEE+", correct: false }
                 ]
-            }, // <-- FALTABA ESTA COMA: rompía todo el script
+            },
             {
                 q: "¿Cuál es la medida más sencilla, económica y eficaz para prevenir las IAAS en nuestra UPC?",
                 options: [
@@ -270,23 +254,21 @@
                 ]
             }
         ];
- 
-        const EMOJIS = ['🦠', '🧫', '🐛'];
- 
-        // ===== ESTADO =====
+
+        // Variables de estado del juego
         let score = 0;
-        let bacteriaCaught = 0;
-        let timeLeft = GAME_SECONDS;
-        let gameInterval = null;
-        let spawnTimeout = null;
-        let gameRunning = false;
+        let timeLeft = 15;
+        let gameInterval;
+        let spawnInterval;
+        const EMOJIS = ['🦠', '🧫', '🐛'];
+        const PENALTY_EMOJIS = ['🧤', '😷']; // Elementos que restan puntos
         let playerName = "";
- 
+        
+        // Variables de Trivia
         let selectedQuestions = [];
         let currentQuestionIndex = 0;
         let correctAnswersCount = 0;
-        let answerLocked = false;
- 
+        
         const screens = {
             start: document.getElementById('start-screen'),
             game: document.getElementById('game-screen'),
@@ -297,273 +279,220 @@
         const scoreEl = document.getElementById('score');
         const timerEl = document.getElementById('timer');
         const nameInput = document.getElementById('player-name');
- 
-        // ===== UTILIDADES =====
-        // Mezcla sin sesgo (sort con Math.random está sesgado)
-        function shuffle(arr) {
-            const a = arr.slice();
-            for (let i = a.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [a[i], a[j]] = [a[j], a[i]];
-            }
-            return a;
-        }
- 
+
         function showCustomAlert(msg) {
             const oldAlert = document.getElementById('custom-alert');
-            if (oldAlert) oldAlert.remove();
+            if(oldAlert) oldAlert.remove();
             const alertDiv = document.createElement('div');
             alertDiv.id = 'custom-alert';
-            alertDiv.className = 'fixed top-10 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-full font-bold shadow-xl z-[100] transition-opacity duration-300 text-center';
-            alertDiv.textContent = msg;
+            alertDiv.className = 'absolute top-10 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-full font-bold shadow-xl z-[100] transition-opacity duration-300 w-[90%] max-w-sm text-center';
+            alertDiv.innerText = msg;
             document.body.appendChild(alertDiv);
-            setTimeout(() => {
-                alertDiv.style.opacity = '0';
-                setTimeout(() => alertDiv.remove(), 300);
+            setTimeout(() => { 
+                alertDiv.style.opacity = '0'; 
+                setTimeout(() => alertDiv.remove(), 300); 
             }, 2500);
         }
- 
-        function updateHUD() {
-            scoreEl.textContent = score;
-            timerEl.textContent = timeLeft + 's';
-            timerEl.classList.toggle('text-red-300', timeLeft <= 5);
-        }
- 
-        // ===== FASE 1 =====
-        function startGame() {
-            if (gameRunning) return; // evita doble inicio por doble toque
- 
+
+        window.startGame = function() {
             playerName = nameInput.value.trim();
-            if (!playerName) {
+            if(!playerName) {
                 showCustomAlert("¡Ingresa tu nombre o iniciales para el ranking!");
                 nameInput.focus();
                 return;
             }
-            nameInput.blur(); // cierra el teclado en móvil
- 
+
+            // Resetear stats
             score = 0;
-            bacteriaCaught = 0;
-            timeLeft = GAME_SECONDS;
+            timeLeft = 15;
             correctAnswersCount = 0;
-            gameRunning = true;
             updateHUD();
             playArea.innerHTML = '';
- 
+
             screens.start.classList.add('hidden');
             screens.game.classList.remove('hidden');
             screens.game.classList.add('flex');
- 
-            clearInterval(gameInterval);
+
             gameInterval = setInterval(() => {
                 timeLeft--;
                 updateHUD();
-                if (timeLeft <= 0) endPhase1();
+                
+                if (timeLeft <= 0) {
+                    endPhase1();
+                }
             }, 1000);
- 
+
             spawnBacteriaLoop();
-        }
- 
+        };
+
         function spawnBacteriaLoop() {
-            if (!gameRunning || timeLeft <= 0) return;
-            spawnBacterium();
-            spawnTimeout = setTimeout(spawnBacteriaLoop, Math.random() * 400 + 300);
+            if (timeLeft > 0) {
+                spawnBacterium();
+                const nextSpawnTime = Math.random() * 400 + 300;
+                spawnInterval = setTimeout(spawnBacteriaLoop, nextSpawnTime);
+            }
         }
- 
+
         function spawnBacterium() {
             const bac = document.createElement('div');
-            bac.className = 'bacteria';
-            const inner = document.createElement('span');
-            inner.textContent = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
-            inner.style.animationDelay = `-${(Math.random() * 6).toFixed(2)}s`; // ángulo inicial aleatorio
-            bac.appendChild(inner);
- 
-            const maxX = Math.max(0, playArea.clientWidth - 60);
-            const maxY = Math.max(0, playArea.clientHeight - 60);
-            bac.style.left = `${Math.floor(Math.random() * maxX)}px`;
-            bac.style.top = `${Math.floor(Math.random() * maxY) + 20}px`; // margen para la flotación hacia arriba
- 
-            bac.addEventListener('pointerdown', (e) => {
+            bac.classList.add('bacteria');
+            
+            // 20% de probabilidad de que sea un EPP (penalización)
+            const isPenalty = Math.random() < 0.2; 
+            
+            if (isPenalty) {
+                bac.innerText = PENALTY_EMOJIS[Math.floor(Math.random() * PENALTY_EMOJIS.length)];
+                bac.style.filter = "drop-shadow(0 4px 6px rgba(220,38,38,0.4))"; // Sombra rojiza para el EPP
+            } else {
+                bac.innerText = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+            }
+            
+            const maxX = playArea.clientWidth - 50;
+            const maxY = playArea.clientHeight - 50;
+            const randomX = Math.max(0, Math.floor(Math.random() * maxX));
+            const randomY = Math.max(0, Math.floor(Math.random() * maxY));
+            
+            bac.style.left = `${randomX}px`;
+            bac.style.top = `${randomY}px`;
+            bac.style.transform = `rotate(${Math.random() * 360}deg)`;
+
+            bac.onpointerdown = (e) => {
                 e.preventDefault();
-                if (!gameRunning || bac.classList.contains('pop')) return;
+                if(bac.classList.contains('pop')) return;
+                
                 bac.classList.add('pop');
-                score += POINTS_PER_BACTERIUM;
-                bacteriaCaught++;
-                updateHUD();
-                setTimeout(() => bac.remove(), 200);
-            });
- 
-            playArea.appendChild(bac);
- 
-            setTimeout(() => {
-                if (bac.isConnected && !bac.classList.contains('pop')) {
-                    bac.style.opacity = '0';
-                    bac.style.pointerEvents = 'none';
-                    setTimeout(() => bac.remove(), 300);
+                
+                if (isPenalty) {
+                    score -= 20; // Restar puntos
+                    // Efecto visual de error en el fondo
+                    playArea.classList.add('flash-error');
+                    setTimeout(() => playArea.classList.remove('flash-error'), 150);
+                } else {
+                    score += 10; // Sumar puntos normales
                 }
-            }, 2500);
+                
+                updateHUD();
+                setTimeout(() => { if (bac.parentNode) bac.parentNode.removeChild(bac); }, 200);
+            };
+
+            playArea.appendChild(bac);
+
+            setTimeout(() => {
+                if (bac.parentNode && !bac.classList.contains('pop')) {
+                    bac.style.opacity = '0';
+                    bac.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => { if (bac.parentNode) bac.parentNode.removeChild(bac); }, 300);
+                }
+            }, 2500); 
         }
- 
+
+        function updateHUD() {
+            scoreEl.innerText = score;
+            // Si el puntaje baja de cero temporalmente, mostrarlo rojo
+            if(score < 0) scoreEl.classList.add('text-red-300');
+            else scoreEl.classList.remove('text-red-300');
+
+            timerEl.innerText = timeLeft + 's';
+            if (timeLeft <= 5) timerEl.classList.add('text-red-300');
+            else timerEl.classList.remove('text-red-300');
+        }
+
         function endPhase1() {
-            if (!gameRunning) return; // evita doble llamada
-            gameRunning = false;
             clearInterval(gameInterval);
-            clearTimeout(spawnTimeout);
-            playArea.innerHTML = ''; // limpia bacterias restantes
- 
-            selectedQuestions = shuffle(ALL_QUESTIONS).slice(0, QUESTIONS_PER_GAME);
+            clearTimeout(spawnInterval);
+            
+            let shuffled = [...ALL_QUESTIONS].sort(() => 0.5 - Math.random());
+            selectedQuestions = shuffled.slice(0, 2);
             currentQuestionIndex = 0;
- 
+
             showTriviaQuestion();
             screens.trivia.classList.remove('hidden');
         }
- 
-        // ===== FASE 2 =====
+
         function showTriviaQuestion() {
-            answerLocked = false;
             const qData = selectedQuestions[currentQuestionIndex];
-            document.getElementById('trivia-progress').textContent =
-                `Pregunta ${currentQuestionIndex + 1} de ${QUESTIONS_PER_GAME}`;
-            document.getElementById('trivia-question-text').textContent = qData.q;
- 
+            document.getElementById('trivia-progress').innerText = `Pregunta ${currentQuestionIndex + 1} de 2`;
+            document.getElementById('trivia-question-text').innerText = qData.q;
+            
             const container = document.getElementById('trivia-options-container');
             container.innerHTML = '';
- 
-            // Opciones en orden aleatorio: la correcta no queda siempre en la misma posición
-            shuffle(qData.options).forEach((opt) => {
+
+            qData.options.forEach((opt) => {
                 const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'w-full text-left text-[0.9rem] p-3 rounded-lg border-2 border-slate-200 hover:border-teal-400 hover:bg-teal-50 transition-colors font-medium text-slate-700 active:scale-[0.98] transform duration-100';
-                btn.textContent = opt.text;
-                btn.dataset.correct = opt.correct ? '1' : '0';
-                btn.addEventListener('click', () => handleTriviaAnswer(btn, opt.correct));
+                btn.className = 'w-full text-left text-[0.9rem] p-3 rounded-lg border-2 border-slate-200 hover:border-teal-400 hover:bg-teal-50 transition-colors font-medium text-slate-700 active:bg-teal-100 active:scale-[0.98] transform duration-100';
+                btn.innerText = opt.text;
+                btn.onclick = () => handleTriviaAnswer(opt.correct);
                 container.appendChild(btn);
             });
         }
- 
-        function handleTriviaAnswer(btn, isCorrect) {
-            // Bloqueo: un doble toque ya no responde la pregunta siguiente por accidente
-            if (answerLocked) return;
-            answerLocked = true;
- 
+
+        window.handleTriviaAnswer = function(isCorrect) {
             if (isCorrect) {
-                score += POINTS_PER_ANSWER;
+                score += 500;
                 correctAnswersCount++;
             }
- 
-            // Feedback visual: verde la correcta, rojo la elegida si es incorrecta
-            const buttons = document.querySelectorAll('#trivia-options-container button');
-            buttons.forEach((b) => {
-                b.disabled = true;
-                b.classList.remove('hover:border-teal-400', 'hover:bg-teal-50');
-                if (b.dataset.correct === '1') {
-                    b.classList.add('border-green-500', 'bg-green-50', 'text-green-800');
-                } else if (b === btn) {
-                    b.classList.add('border-red-500', 'bg-red-50', 'text-red-800');
-                }
-            });
- 
-            setTimeout(() => {
-                currentQuestionIndex++;
-                if (currentQuestionIndex < QUESTIONS_PER_GAME) {
-                    showTriviaQuestion();
-                } else {
-                    finishGame();
-                }
-            }, 1200);
-        }
- 
-        // ===== RESULTADOS + RANKING =====
-        function renderLeaderboard(top10) {
-            const listEl = document.getElementById('leaderboard-list');
-            listEl.innerHTML = '';
- 
-            if (!Array.isArray(top10) || top10.length === 0) {
-                listEl.innerHTML = '<li class="text-center text-slate-500 italic py-4">Aún no hay puntajes.</li>';
-                return;
+            
+            currentQuestionIndex++;
+            if (currentQuestionIndex < 2) {
+                showTriviaQuestion();
+            } else {
+                finishGame();
             }
- 
-            let meMarked = false;
-            top10.forEach((entry, index) => {
-                const li = document.createElement('li');
-                const nombre = String(entry.nombre ?? '');
-                const puntaje = Number(entry.puntaje) || 0;
-                // Marca solo la primera coincidencia
-                const isMe = !meMarked && nombre === playerName && puntaje === score;
-                if (isMe) meMarked = true;
- 
-                li.className = `flex justify-between items-center p-2 rounded-lg border-b border-slate-100 ${isMe ? 'bg-teal-100 font-bold text-teal-800 border-teal-300' : 'text-slate-600'}`;
- 
-                const left = document.createElement('span');
-                left.className = 'truncate pr-2';
-                const medals = ['🥇', '🥈', '🥉'];
-                if (index < 3) {
-                    left.append(medals[index] + ' ');
-                } else {
-                    const pos = document.createElement('span');
-                    pos.className = 'inline-block w-[24px] text-center text-slate-400 font-mono text-xs';
-                    pos.textContent = `${index + 1}.`;
-                    left.append(pos, ' ');
-                }
-                // textContent: el nombre no se interpreta como HTML (evita XSS en el ranking compartido)
-                left.append(nombre);
- 
-                const right = document.createElement('span');
-                right.className = 'font-mono bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-xs';
-                right.textContent = `${puntaje} pts`;
- 
-                li.append(left, right);
-                listEl.appendChild(li);
-            });
-        }
- 
+        };
+
         async function finishGame() {
             screens.trivia.classList.add('hidden');
             screens.result.classList.remove('hidden');
- 
-            document.getElementById('final-score').textContent = score;
-            const fb = document.getElementById('result-feedback');
-            fb.innerHTML = '';
-            const b1 = document.createElement('strong'); b1.textContent = bacteriaCaught;
-            const b2 = document.createElement('strong'); b2.textContent = `${correctAnswersCount} de ${QUESTIONS_PER_GAME}`;
-            fb.append('Atrapaste ', b1, ' patógenos y respondiste bien ', b2, ' preguntas clínicas.');
- 
+
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('result-feedback').innerHTML = 
+                `Respondiste bien <strong>${correctAnswersCount} de 2</strong> preguntas clínicas.`;
+
             const listEl = document.getElementById('leaderboard-list');
             listEl.innerHTML = '<li class="text-center text-slate-500 italic py-4 flex flex-col items-center"><span class="animate-spin text-2xl mb-2">🔄</span> Sincronizando ranking...</li>';
- 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
- 
+
             try {
-                const response = await fetch(`${API_BASE}/api/score`, {
+                const response = await fetch('/api/score', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nombre: playerName, puntaje: score }),
-                    signal: controller.signal
+                    body: JSON.stringify({ nombre: playerName, puntaje: score })
                 });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                if (!response.ok) throw new Error("Error en la respuesta del servidor");
                 const data = await response.json();
-                renderLeaderboard(data.top10);
+                
+                listEl.innerHTML = '';
+                
+                data.top10.forEach((entry, index) => {
+                    const li = document.createElement('li');
+                    const isMe = (entry.nombre === playerName && entry.puntaje === score);
+                    li.className = `flex justify-between items-center p-2 rounded-lg border-b border-slate-100 ${isMe ? 'bg-teal-100 font-bold text-teal-800 border-teal-300' : 'text-slate-600'}`;
+                    
+                    let icon = '';
+                    if(index === 0) icon = '🥇 ';
+                    else if(index === 1) icon = '🥈 ';
+                    else if(index === 2) icon = '🥉 ';
+                    else icon = `<span class="inline-block w-[24px] text-center text-slate-400 font-mono text-xs">${index+1}.</span> `;
+
+                    li.innerHTML = `
+                        <span class="truncate pr-2">${icon} ${entry.nombre}</span>
+                        <span class="font-mono bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-xs">${entry.puntaje} pts</span>
+                    `;
+                    listEl.appendChild(li);
+                });
+
             } catch (err) {
-                console.error("Error cargando Leaderboard:", err);
+                console.error("Error cargando Leaderboard: ", err);
                 listEl.innerHTML = '<li class="text-center text-red-500 text-xs py-3 font-semibold">Hubo un problema de conexión al cargar el ranking.</li>';
-            } finally {
-                clearTimeout(timeoutId);
             }
         }
- 
-        function resetGame() {
+
+        window.resetGame = function() {
             screens.result.classList.add('hidden');
-            screens.trivia.classList.add('hidden');
             screens.game.classList.remove('flex');
             screens.game.classList.add('hidden');
             screens.start.classList.remove('hidden');
-        }
- 
-        // ===== EVENTOS =====
-        document.getElementById('start-btn').addEventListener('click', startGame);
-        document.getElementById('reset-btn').addEventListener('click', resetGame);
-        nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') startGame(); });
-    })();
+        };
     </script>
 </body>
 </html>
